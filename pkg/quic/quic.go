@@ -5,19 +5,21 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/RarePepeCode/quick-broker/pkg/pubsub"
 	"github.com/quic-go/quic-go"
 )
 
 var (
-	pubPort = 1234
-	subPort = 5678
+	serverIp = net.IPv4(127, 0, 0, 1)
+	pubPort  = 1234
+	subPort  = 5678
 )
 
 func PubConn(broker pubsub.BrokerConnection) {
 	tlsConfig, quicConfig := createConfigs()
-	tr := pubTr(pubPort)
+	tr := createTr(pubPort)
 	ln, err := tr.Listen(tlsConfig, quicConfig)
 	if err != nil {
 		fmt.Println(err)
@@ -39,7 +41,25 @@ func PubConn(broker pubsub.BrokerConnection) {
 						fmt.Println(pubsub.NoSubsMsg)
 						str.Write([]byte(pubsub.NoSubsMsg))
 					}
-					stremComm(broker, str, c)
+					go func() {
+						for {
+							buf := make([]byte, 512)
+							n, err := str.Read(buf)
+							if err != nil {
+								fmt.Println(err)
+								broker.Close(c)
+								break
+							}
+							broker.ReceiveMsg((string(buf[:n])))
+						}
+					}()
+					go func() {
+						for i := range c {
+							msg := i
+							fmt.Println("Sending to client - ", msg)
+							str.Write([]byte(msg))
+						}
+					}()
 				}
 			}()
 		}
@@ -48,7 +68,7 @@ func PubConn(broker pubsub.BrokerConnection) {
 
 func SubConn(broker pubsub.BrokerConnection) {
 	tlsConfig, quicConfig := createConfigs()
-	tr := pubTr(subPort)
+	tr := createTr(subPort)
 	ln, err := tr.Listen(tlsConfig, quicConfig)
 	if err != nil {
 		fmt.Println(err)
@@ -66,7 +86,13 @@ func SubConn(broker pubsub.BrokerConnection) {
 						fmt.Println(err)
 					}
 					c := broker.CreateSub()
-					stremComm(broker, str, c)
+					go func() {
+						for i := range c {
+							msg := i
+							fmt.Println("Sending to client - ", msg)
+							str.Write([]byte(msg))
+						}
+					}()
 				}
 			}()
 		}
@@ -92,26 +118,6 @@ func ClientMain() error {
 	return nil
 }
 
-func stremComm(broker pubsub.BrokerConnection, str quic.Stream, c chan string) {
-	go func() {
-		for {
-			buf := make([]byte, 512)
-			n, err := str.Read(buf)
-			if err != nil {
-				fmt.Println(err)
-			}
-			broker.ReceiveMsg((string(buf[:n])))
-		}
-	}()
-	go func() {
-		for {
-			msg := <-c
-			fmt.Println("Sending to client - ", msg)
-			str.Write([]byte(msg))
-		}
-	}()
-}
-
 func loadCert() tls.Certificate {
 	cert, err := tls.LoadX509KeyPair("cert/cert.pem", "cert/key.pem")
 	if err != nil {
@@ -127,13 +133,14 @@ func createConfigs() (*tls.Config, *quic.Config) {
 	}
 	quicConfig := &quic.Config{
 		RequireAddressValidation: func(a net.Addr) bool { return false },
+		MaxIdleTimeout:           1 * time.Hour,
 	}
 	return tlsConfig, quicConfig
 }
 
-func pubTr(port int) quic.Transport {
+func createTr(port int) quic.Transport {
 	udpConn, err := net.ListenUDP("udp4", &net.UDPAddr{
-		IP:   net.IPv4(127, 0, 0, 1),
+		IP:   serverIp,
 		Port: port,
 	})
 	if err != nil {
