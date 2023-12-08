@@ -5,83 +5,111 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"time"
 
+	"github.com/RarePepeCode/quick-broker/pkg/pubsub"
 	"github.com/quic-go/quic-go"
 )
 
-const (
+var (
 	pubPort = 1234
 	subPort = 5678
 )
 
-var tlsConfig = &tls.Config{
-	Certificates:       []tls.Certificate{loadCert()},
-	InsecureSkipVerify: true,
-}
-var quicConfig = &quic.Config{
-	RequireAddressValidation: func(a net.Addr) bool { return false },
-}
-
-func PubConn() {
-	tr := pubTr()
+func PubConn(broker pubsub.BrokerConnection) {
+	tlsConfig, quicConfig := createConfigs()
+	tr := pubTr(pubPort)
 	ln, err := tr.Listen(tlsConfig, quicConfig)
 	if err != nil {
-		fmt.Println("Error")
+		fmt.Println(err)
 	}
 	go func() {
 		for {
 			conn, err := ln.Accept(context.Background())
 			if err != nil {
-				fmt.Println("Error")
+				fmt.Println(err)
 			}
-
 			go func() {
 				for {
 					str, err := conn.AcceptStream(context.Background())
 					if err != nil {
 						fmt.Println(err)
 					}
-					buf := make([]byte, 512)
-					n, err := str.Read(buf)
-					if err != nil {
-						fmt.Println(err)
+					c, hasSubs := broker.CreatePub()
+					if !hasSubs {
+						fmt.Println(pubsub.NoSubsMsg)
+						str.Write([]byte(pubsub.NoSubsMsg))
 					}
-					fmt.Println(string(buf[:n]))
+					stremComm(broker, str, c)
 				}
 			}()
 		}
 	}()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second) // 3s handshake timeout
-	defer cancel()
-
-	conn, err := tr.Dial(ctx, tr.Conn.LocalAddr(), tlsConfig, quicConfig)
-	if err != nil {
-		fmt.Println(err)
-	}
-	stream, err := conn.OpenStreamSync(ctx)
-	if err != nil {
-		fmt.Println(err)
-	}
-	stream.Write([]byte("Sending Message"))
-	time.Sleep(5 * time.Second)
 }
 
-func MockClient() {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second) // 3s handshake timeout
-	defer cancel()
-	tr := pubTr()
-	conn, err := tr.Dial(ctx, tr.Conn.LocalAddr(), tlsConfig, quicConfig)
+func SubConn(broker pubsub.BrokerConnection) {
+	tlsConfig, quicConfig := createConfigs()
+	tr := pubTr(subPort)
+	ln, err := tr.Listen(tlsConfig, quicConfig)
 	if err != nil {
 		fmt.Println(err)
 	}
-	stream, err := conn.OpenStreamSync(ctx)
+	go func() {
+		for {
+			conn, err := ln.Accept(context.Background())
+			if err != nil {
+				fmt.Println(err)
+			}
+			go func() {
+				for {
+					str, err := conn.AcceptStream(context.Background())
+					if err != nil {
+						fmt.Println(err)
+					}
+					c := broker.CreateSub()
+					stremComm(broker, str, c)
+				}
+			}()
+		}
+	}()
+}
+
+func ClientMain() error {
+	message := "Goog massage"
+	tlsConfig, quicConfig := createConfigs()
+
+	conn, err := quic.DialAddr(context.Background(), "127.0.0.1:1234", tlsConfig, quicConfig)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
-	stream.Write([]byte("Sending Message"))
-	time.Sleep(5 * time.Second)
+	stream, err := conn.OpenStreamSync(context.Background())
+	if err != nil {
+		return err
+	}
+	_, err = stream.Write([]byte(message))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func stremComm(broker pubsub.BrokerConnection, str quic.Stream, c chan string) {
+	go func() {
+		for {
+			buf := make([]byte, 512)
+			n, err := str.Read(buf)
+			if err != nil {
+				fmt.Println(err)
+			}
+			broker.ReceiveMsg((string(buf[:n])))
+		}
+	}()
+	go func() {
+		for {
+			msg := <-c
+			fmt.Println("Sending to client - ", msg)
+			str.Write([]byte(msg))
+		}
+	}()
 }
 
 func loadCert() tls.Certificate {
@@ -92,10 +120,21 @@ func loadCert() tls.Certificate {
 	return cert
 }
 
-func pubTr() quic.Transport {
+func createConfigs() (*tls.Config, *quic.Config) {
+	tlsConfig := &tls.Config{
+		Certificates:       []tls.Certificate{loadCert()},
+		InsecureSkipVerify: true,
+	}
+	quicConfig := &quic.Config{
+		RequireAddressValidation: func(a net.Addr) bool { return false },
+	}
+	return tlsConfig, quicConfig
+}
+
+func pubTr(port int) quic.Transport {
 	udpConn, err := net.ListenUDP("udp4", &net.UDPAddr{
 		IP:   net.IPv4(127, 0, 0, 1),
-		Port: pubPort,
+		Port: port,
 	})
 	if err != nil {
 		fmt.Println(err)
