@@ -1,6 +1,9 @@
 package pubsub
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 var (
 	NoSubsMsg       = "No subscribers are connected to the server"
@@ -11,6 +14,7 @@ type BrokerConnection interface {
 	CreatePub() (chan string, bool)
 	CreateSub() chan string
 	ReceiveMsg(string)
+	Close(chan string)
 }
 
 type Broker struct {
@@ -58,5 +62,16 @@ func (b *Broker) ReceiveMsg(msg string) {
 		sub <- msg
 		fmt.Println("Message Sent")
 	}
+}
 
+func (b *Broker) Close(c chan string) {
+	var index int
+	if slices.Contains(b.subs, c) {
+		index = slices.Index(b.subs, c)
+		b.subs = append(b.subs[:index], b.subs[index+1:]...)
+	} else {
+		index = slices.Index(b.pubs, c)
+		b.subs = append(b.pubs[:index], b.pubs[index+1:]...)
+	}
+	close(c)
 }
