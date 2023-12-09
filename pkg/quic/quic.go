@@ -56,7 +56,7 @@ func PubConn(broker pubsub.BrokerConnection) {
 					go func() {
 						for i := range c {
 							msg := i
-							fmt.Println("Sending to client - ", msg)
+							fmt.Println("Sending to Pub client - ", msg)
 							str.Write([]byte(msg))
 						}
 					}()
@@ -89,7 +89,7 @@ func SubConn(broker pubsub.BrokerConnection) {
 					go func() {
 						for i := range c {
 							msg := i
-							fmt.Println("Sending to client - ", msg)
+							fmt.Println("Sending to Sub client - ", msg)
 							str.Write([]byte(msg))
 						}
 					}()
@@ -97,25 +97,6 @@ func SubConn(broker pubsub.BrokerConnection) {
 			}()
 		}
 	}()
-}
-
-func ClientMain() error {
-	message := "Goog massage"
-	tlsConfig, quicConfig := createConfigs()
-
-	conn, err := quic.DialAddr(context.Background(), "127.0.0.1:1234", tlsConfig, quicConfig)
-	if err != nil {
-		return err
-	}
-	stream, err := conn.OpenStreamSync(context.Background())
-	if err != nil {
-		return err
-	}
-	_, err = stream.Write([]byte(message))
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func loadCert() tls.Certificate {

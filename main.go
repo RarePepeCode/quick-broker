@@ -6,6 +6,7 @@ import (
 
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/RarePepeCode/quick-broker/pkg/pubsub"
 	"github.com/RarePepeCode/quick-broker/pkg/quic"
@@ -22,6 +23,7 @@ func main() {
 	fmt.Println("Pub Connection started")
 	quic.SubConn(broker)
 	fmt.Println("Sub Connection started")
-	quic.ClientMain()
+	time.Sleep(5 * time.Second)
+	broker.ReceiveMsg("THIS MEESAGE")
 	wg.Wait()
 }
