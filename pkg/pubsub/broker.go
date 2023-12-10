@@ -69,7 +69,7 @@ func (b *Broker) Close(c chan string) {
 	if slices.Contains(b.subs, c) {
 		index = slices.Index(b.subs, c)
 		b.subs = append(b.subs[:index], b.subs[index+1:]...)
-	} else {
+	} else if slices.Contains(b.pubs, c) {
 		index = slices.Index(b.pubs, c)
 		b.subs = append(b.pubs[:index], b.pubs[index+1:]...)
 	}

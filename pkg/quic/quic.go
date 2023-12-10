@@ -17,24 +17,25 @@ var (
 	subPort  = 5678
 )
 
-func PubConn(broker pubsub.BrokerConnection) {
+func PubConn(broker pubsub.BrokerConnection) (chan error, error) {
 	tlsConfig, quicConfig := createConfigs()
 	tr := createTr(pubPort)
 	ln, err := tr.Listen(tlsConfig, quicConfig)
+	errCh := make(chan error)
 	if err != nil {
-		fmt.Println(err)
+		return errCh, err
 	}
 	go func() {
 		for {
 			conn, err := ln.Accept(context.Background())
 			if err != nil {
-				fmt.Println(err)
+				errCh <- err
 			}
 			go func() {
 				for {
 					str, err := conn.AcceptStream(context.Background())
 					if err != nil {
-						fmt.Println(err)
+						errCh <- err
 					}
 					c, hasSubs := broker.CreatePub()
 					if !hasSubs {
@@ -46,8 +47,10 @@ func PubConn(broker pubsub.BrokerConnection) {
 							buf := make([]byte, 512)
 							n, err := str.Read(buf)
 							if err != nil {
+								errCh <- err
 								fmt.Println(err)
 								broker.Close(c)
+								str.Close()
 								break
 							}
 							broker.ReceiveMsg((string(buf[:n])))
@@ -64,26 +67,31 @@ func PubConn(broker pubsub.BrokerConnection) {
 			}()
 		}
 	}()
+	return errCh, nil
 }
 
-func SubConn(broker pubsub.BrokerConnection) {
+func SubConn(broker pubsub.BrokerConnection) (chan error, error) {
 	tlsConfig, quicConfig := createConfigs()
 	tr := createTr(subPort)
 	ln, err := tr.Listen(tlsConfig, quicConfig)
+	errCh := make(chan error)
 	if err != nil {
-		fmt.Println(err)
+		return errCh, err
 	}
+
 	go func() {
 		for {
 			conn, err := ln.Accept(context.Background())
 			if err != nil {
-				fmt.Println(err)
+				ln.Close()
+				errCh <- err
 			}
 			go func() {
 				for {
 					str, err := conn.AcceptStream(context.Background())
 					if err != nil {
-						fmt.Println(err)
+						str.Close()
+						errCh <- err
 					}
 					c := broker.CreateSub()
 					go func() {
@@ -97,6 +105,7 @@ func SubConn(broker pubsub.BrokerConnection) {
 			}()
 		}
 	}()
+	return errCh, nil
 }
 
 func loadCert() tls.Certificate {
