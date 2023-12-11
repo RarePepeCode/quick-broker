@@ -3,6 +3,7 @@ package quic
 import (
 	"context"
 	"log"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -22,6 +23,11 @@ var (
 // As no Subs are connected to the server, info message about it should be sent via quic.
 // By receiving that message we can confirm that we create conenction between server and client.
 func TestPubConnectionWithNoSubs(t *testing.T) {
+	// Change dir to load the certs
+	currentDir, _ := os.Getwd()
+	os.Chdir("../..")
+	defer os.Chdir(currentDir)
+	println(os.Getwd())
 	broker := pubsub.NewBroker()
 	PubConn(broker)
 
@@ -53,6 +59,10 @@ func TestPubConnectionWithNoSubs(t *testing.T) {
 // Tests Sub Connection by creating Client and connecting to it.
 // Broker Receives the message as it where from the pub and sends to all sub client
 func TestSubCreation(t *testing.T) {
+	// Change dir to load the certs
+	currentDir, _ := os.Getwd()
+	os.Chdir("../..")
+	defer os.Chdir(currentDir)
 	broker := pubsub.NewBroker()
 	SubConn(broker)
 
@@ -63,11 +73,11 @@ func TestSubCreation(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	subStream, err := subConn.OpenStreamSync(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	_, err = subStream.Write([]byte(message))
 	if err != nil {
 		log.Fatal(err)
@@ -89,6 +99,10 @@ func TestSubCreation(t *testing.T) {
 // First pub connection is establish at that point no subs exist, so server sends message about it.
 // After sub connection is made, which will sent the message about it to the first (pub) client.
 func TestInformSubConnnected(t *testing.T) {
+	// Change dir to load the certs
+	currentDir, _ := os.Getwd()
+	os.Chdir("../..")
+	defer os.Chdir(currentDir)
 	broker := pubsub.NewBroker()
 
 	PubConn(broker)
