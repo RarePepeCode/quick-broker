@@ -10,10 +10,23 @@ var (
 	SubConnectedMsg = "A new subscriber connected to the server"
 )
 
+// Interface that allow pub and sub peer communincate with each other
 type BrokerConnection interface {
+
+	// Broker establishes a new connection with the publisher peer.
+	// Returns channel through which messages will be sent to publisher client.
+	// When creating a new publisher server will return if there's any connected subscribers at the moment
 	CreatePub() (chan string, bool)
+
+	// Broker establishes a new connection with the subscriber peer.
+	// Returns channel through which messages will be sent to subscriber client.
 	CreateSub() chan string
+
+	// Function through which publisher can send message to all exisiting subscribers.
 	ReceiveMsg(string)
+
+	// Closes the connection to given channel, as well deletes it from the pool of pubs/subs.
+	// Messages can no longer pass throguh this channel.
 	Close(chan string)
 }
 

@@ -6,11 +6,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Test creation of pubsub broker
 func TestBrokerCreation(t *testing.T) {
 	broker := NewBroker()
 	assert.NotNil(t, broker)
 }
 
+// Test cretion of publisher for the server
 func TestPubCreation(t *testing.T) {
 	broker := NewBroker()
 	c, hasSubs := broker.CreatePub()
@@ -18,6 +20,8 @@ func TestPubCreation(t *testing.T) {
 	assert.False(t, hasSubs)
 }
 
+// As when creating a pub we receive info if any subs are connected,
+// we can check successful sub creation by first creating it and then creating pub.
 func TestSubCreation(t *testing.T) {
 	broker := NewBroker()
 	subChan := broker.CreateSub()
@@ -27,6 +31,7 @@ func TestSubCreation(t *testing.T) {
 	assert.True(t, hasSubs)
 }
 
+// Creates multiple subs, which should receive a message when broker gets it from the pub.
 func TestMessageReceive(t *testing.T) {
 	message := "Good message"
 	broker := NewBroker()
@@ -37,6 +42,7 @@ func TestMessageReceive(t *testing.T) {
 	assert.Equal(t, message, <-c2)
 }
 
+// Closes all channels for the server and checks if none of them can receive messages.
 func TestClose(t *testing.T) {
 	broker := NewBroker()
 	c1 := broker.CreateSub()
