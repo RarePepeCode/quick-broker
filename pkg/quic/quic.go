@@ -39,7 +39,6 @@ func PubConn(broker pubsub.BrokerConnection) (chan error, error) {
 					}
 					c, hasSubs := broker.CreatePub()
 					if !hasSubs {
-						fmt.Println(pubsub.NoSubsMsg)
 						str.Write([]byte(pubsub.NoSubsMsg))
 					}
 					go func() {
@@ -48,7 +47,6 @@ func PubConn(broker pubsub.BrokerConnection) (chan error, error) {
 							n, err := str.Read(buf)
 							if err != nil {
 								errCh <- err
-								fmt.Println(err)
 								broker.Close(c)
 								str.Close()
 								break
@@ -59,7 +57,6 @@ func PubConn(broker pubsub.BrokerConnection) (chan error, error) {
 					go func() {
 						for i := range c {
 							msg := i
-							fmt.Println("Sending to Pub client - ", msg)
 							str.Write([]byte(msg))
 						}
 					}()
@@ -97,7 +94,6 @@ func SubConn(broker pubsub.BrokerConnection) (chan error, error) {
 					go func() {
 						for i := range c {
 							msg := i
-							fmt.Println("Sending to Sub client - ", msg)
 							str.Write([]byte(msg))
 						}
 					}()

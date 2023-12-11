@@ -27,7 +27,6 @@ func TestPubConnectionWithNoSubs(t *testing.T) {
 	currentDir, _ := os.Getwd()
 	os.Chdir("../..")
 	defer os.Chdir(currentDir)
-	println(os.Getwd())
 	broker := pubsub.NewBroker()
 	PubConn(broker)
 

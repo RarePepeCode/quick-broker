@@ -1,7 +1,6 @@
 package pubsub
 
 import (
-	"fmt"
 	"slices"
 )
 
@@ -43,11 +42,9 @@ func NewBroker() BrokerConnection {
 }
 
 func (b *Broker) CreateSub() chan string {
-	fmt.Println("Sub Creation")
 	subChan := make(chan string)
 	b.subs = append(b.subs, subChan)
 	b.notifyPubs()
-	fmt.Println("Sub Created")
 	return subChan
 }
 
@@ -58,10 +55,8 @@ func (b *Broker) notifyPubs() {
 }
 
 func (b *Broker) CreatePub() (chan string, bool) {
-	fmt.Println("Pub Creation")
 	pubChan := make(chan string)
 	b.pubs = append(b.pubs, pubChan)
-	fmt.Println("Pub Created")
 	return pubChan, b.hasSubs()
 }
 
@@ -70,10 +65,8 @@ func (b *Broker) hasSubs() bool {
 }
 
 func (b *Broker) ReceiveMsg(msg string) {
-	fmt.Println("Message received", msg)
 	for _, sub := range b.subs {
 		sub <- msg
-		fmt.Println("Message Sent")
 	}
 }
 
