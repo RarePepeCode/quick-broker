@@ -28,7 +28,7 @@ func TestPubConnectionWithNoSubs(t *testing.T) {
 	os.Chdir("../..")
 	defer os.Chdir(currentDir)
 	broker := pubsub.NewBroker()
-	PubConn(broker)
+	PubConn(broker, nil)
 
 	// Mock client connection to the server
 	tlsConfig, quicConfig := createConfigs()
@@ -104,7 +104,7 @@ func TestInformSubConnnected(t *testing.T) {
 	defer os.Chdir(currentDir)
 	broker := pubsub.NewBroker()
 
-	PubConn(broker)
+	PubConn(broker, nil)
 	SubConn(broker)
 
 	tlsConfig, quicConfig := createConfigs()

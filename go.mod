@@ -1,6 +1,6 @@
 module github.com/RarePepeCode/quick-broker
 
-go 1.21.1
+go 1.21
 
 require github.com/quic-go/quic-go v0.40.0
 

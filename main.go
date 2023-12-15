@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"sync"
-	"time"
 
 	"github.com/RarePepeCode/quick-broker/pkg/pubsub"
 	"github.com/RarePepeCode/quick-broker/pkg/quic"
@@ -12,8 +12,26 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	broker := pubsub.NewBroker()
-	quic.PubConn(broker)
-	quic.SubConn(broker)
-	time.Sleep(5 * time.Second)
+	shutdownCh := make(chan string)
+	pubErrCh, err := quic.PubConn(broker, shutdownCh)
+	if err != nil {
+		fmt.Println(err)
+	}
+	go func() {
+		for pubErr := range pubErrCh {
+			fmt.Println(pubErr)
+		}
+	}()
+
+	subErrCh, err := quic.SubConn(broker)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	go func() {
+		for subErr := range subErrCh {
+			fmt.Println(subErr)
+		}
+	}()
 	wg.Wait()
 }

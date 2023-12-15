@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"slices"
+	"sync"
 )
 
 var (
@@ -30,6 +31,7 @@ type BrokerConnection interface {
 }
 
 type Broker struct {
+	lock sync.Mutex
 	subs []chan string
 	pubs []chan string
 }
@@ -42,6 +44,8 @@ func NewBroker() BrokerConnection {
 }
 
 func (b *Broker) CreateSub() chan string {
+	b.lock.Lock()
+	defer b.lock.Unlock()
 	subChan := make(chan string)
 	b.subs = append(b.subs, subChan)
 	b.notifyPubs()
@@ -55,6 +59,8 @@ func (b *Broker) notifyPubs() {
 }
 
 func (b *Broker) CreatePub() (chan string, bool) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
 	pubChan := make(chan string)
 	b.pubs = append(b.pubs, pubChan)
 	return pubChan, b.hasSubs()
@@ -65,19 +71,23 @@ func (b *Broker) hasSubs() bool {
 }
 
 func (b *Broker) ReceiveMsg(msg string) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
 	for _, sub := range b.subs {
 		sub <- msg
 	}
 }
 
 func (b *Broker) Close(c chan string) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
 	var index int
 	if slices.Contains(b.subs, c) {
 		index = slices.Index(b.subs, c)
 		b.subs = append(b.subs[:index], b.subs[index+1:]...)
 	} else if slices.Contains(b.pubs, c) {
 		index = slices.Index(b.pubs, c)
-		b.subs = append(b.pubs[:index], b.pubs[index+1:]...)
+		b.pubs = append(b.pubs[:index], b.pubs[index+1:]...)
 	}
 	close(c)
 }
