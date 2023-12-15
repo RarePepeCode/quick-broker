@@ -17,7 +17,7 @@ var (
 	subPort  = 5678
 )
 
-func PubConn(broker pubsub.BrokerConnection) (chan error, error) {
+func PubConn(broker pubsub.BrokerConnection, ch chan string) (chan error, error) {
 	tlsConfig, quicConfig := createConfigs()
 	tr := createTr(pubPort)
 	ln, err := tr.Listen(tlsConfig, quicConfig)
@@ -25,19 +25,32 @@ func PubConn(broker pubsub.BrokerConnection) (chan error, error) {
 	if err != nil {
 		return errCh, err
 	}
+
 	go func() {
 		for {
 			conn, err := ln.Accept(context.Background())
 			if err != nil {
 				errCh <- err
+				break
 			}
 			go func() {
 				for {
+					if conn.Context().Err() != nil {
+						break
+					}
 					str, err := conn.AcceptStream(context.Background())
 					if err != nil {
 						errCh <- err
+						continue
 					}
 					c, hasSubs := broker.CreatePub()
+					go func() {
+						<-ch
+						str.Close()
+						conn.CloseWithError(0, "nil")
+						broker.Close(c)
+
+					}()
 					if !hasSubs {
 						str.Write([]byte(pubsub.NoSubsMsg))
 					}
@@ -62,6 +75,7 @@ func PubConn(broker pubsub.BrokerConnection) (chan error, error) {
 					}()
 				}
 			}()
+
 		}
 	}()
 	return errCh, nil
