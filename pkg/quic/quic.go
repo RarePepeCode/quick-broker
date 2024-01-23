@@ -3,7 +3,7 @@ package quic
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
+	"log"
 	"net"
 	"time"
 
@@ -121,7 +121,7 @@ func SubConn(broker pubsub.BrokerConnection) (chan error, error) {
 func loadCert() tls.Certificate {
 	cert, err := tls.LoadX509KeyPair("cert/cert.pem", "cert/key.pem")
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	return cert
 }
@@ -144,7 +144,7 @@ func createTr(port int) quic.Transport {
 		Port: port,
 	})
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	return quic.Transport{
 		Conn: udpConn,
