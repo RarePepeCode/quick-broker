@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"sync"
 
 	"github.com/RarePepeCode/quick-broker/pkg/pubsub"
@@ -15,22 +15,22 @@ func main() {
 	shutdownCh := make(chan string)
 	pubErrCh, err := quic.PubConn(broker, shutdownCh)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	go func() {
 		for pubErr := range pubErrCh {
-			fmt.Println(pubErr)
+			log.Println(pubErr)
 		}
 	}()
 
 	subErrCh, err := quic.SubConn(broker)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	go func() {
 		for subErr := range subErrCh {
-			fmt.Println(subErr)
+			log.Println(subErr)
 		}
 	}()
 	wg.Wait()
